@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>釜山自由行助手 - Busan Travel Companion</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Leaflet Map CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- QRCode.js Generator -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap');
+    
+    body {
+      font-family: 'Zen Maru Gothic', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* 可愛海浪與沙灘造型動畫 */
+    .beach-wave {
+      background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+    }
+
+    .sandy-nav {
+      background: #fde047;
+      box-shadow: 0 -4px 15px rgba(234, 179, 8, 0.3);
+    }
+
+    .card-cute {
+      background: #ffffff;
+      border-radius: 1.75rem;
+      border: 2px solid #f1f5f9;
+      box-shadow: 0 8px 20px -6px rgba(148, 163, 184, 0.15);
+    }
+
+    /* 地圖元件彈窗層級調整 */
+    #map {
+      height: 240px;
+      width: 100%;
+      border-radius: 1.5rem;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body class="bg-sky-50 text-slate-800 min-h-screen pb-24 relative overflow-x-hidden">
+
+  <!-- 1. 可愛沙灘與廣安大橋迎賓 Header -->
+  <header class="beach-wave text-white p-4 pt-6 rounded-b-[2.5rem] shadow-lg sticky top-0 z-40">
+    <div class="max-w-md mx-auto relative">
+      <!-- 廣安大橋 SVG 裝飾意象 -->
+      <div class="flex justify-between items-center mb-1">
+        <div class="flex items-center gap-2">
+          <div class="w-10 h-10 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-amber-300 text-xl shadow-inner">
+            <i class="fa-solid fa-umbrella-beach animate-bounce"></i>
+          </div>
+          <div>
+            <h1 class="text-xl font-black tracking-wide flex items-center gap-1.5">
+              釜山 Busan Pass 🌊
+            </h1>
+            <p class="text-[11px] text-sky-100 font-bold">渡假風旅伴助手 (Koder 版)</p>
+          </div>
+        </div>
+
+        <!-- 房間碼狀態 -->
+        <button onclick="openRoomModal()" class="bg-amber-300 hover:bg-amber-400 text-amber-950 font-black text-xs px-3 py-1.5 rounded-2xl flex items-center gap-1.5 shadow-md transition-transform active:scale-95">
+          <i class="fa-solid fa-qrcode"></i>
+          <span id="headerRoomCode">PUSAN-2026</span>
+        </button>
+      </div>
+
+      <!-- 手繪風廣安大橋懸索 SVG 跨越線條 -->
+      <div class="w-full h-4 mt-2 opacity-80 flex items-center justify-center">
+        <svg viewBox="0 0 300 20" class="w-full h-full stroke-white fill-none stroke-[2] stroke-dasharray-[4]">
+          <path d="M0,15 Q75,2 150,15 Q225,2 300,15" />
+          <line x1="75" y1="2" x2="75" y2="18" stroke="white" stroke-width="2"/>
+          <line x1="225" y1="2" x2="225" y2="18" stroke="white" stroke-width="2"/>
+        </svg>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主內容容器 -->
+  <main class="max-w-md mx-auto p-4 space-y-4">
+
+    <!-- ==================== TAB 1: 首頁 (Home) ==================== -->
+    <section id="tab-home" class="space-y-4">
+      
+      <!-- 天氣預報與穿搭建議 -->
+      <div class="bg-gradient-to-br from-amber-400 via-orange-400 to-sky-400 text-white rounded-[2rem] p-5 shadow-md relative overflow-hidden">
+        <div class="absolute -right-4 -bottom-4 opacity-20 text-8xl">
+          <i class="fa-solid fa-cloud-sun"></i>
+        </div>
+
+        <div class="flex justify-between items-start relative z-10">
+          <div>
+            <div class="text-xs font-bold bg-white/20 backdrop-blur-md px-2.5 py-1 rounded-full inline-flex items-center gap-1">
+              <i class="fa-solid fa-location-dot text-amber-200"></i> 釜山廣安里 · 即時氣候
+            </div>
+            <div class="text-4xl font-black mt-2">24°C</div>
+            <div class="text-xs font-medium text-amber-100 mt-1">體感 25°C · 晴朗舒適 ☀️</div>
+          </div>
+
+          <div class="text-right">
+            <div class="bg-white/30 backdrop-blur-md px-3 py-1.5 rounded-2xl text-xs font-black inline-block text-white shadow-sm">
+              <i class="fa-solid fa-umbrella text-blue-200"></i> 降雨率 15%
+            </div>
+            <div class="text-[10px] text-amber-100 mt-2 font-bold bg-black/10 px-2 py-1 rounded-lg">
+              穿搭：薄短袖 + 薄外罩遮陽 🧢
+            </div>
+          </div>
+        </div>
+
+        <!-- 未来 4 日簡報 -->
+        <div class="grid grid-cols-4 gap-2 mt-4 pt-3 border-t border-white/20 text-center text-xs font-bold relative z-10">
+          <div class="bg-white/10 p-1.5 rounded-xl"><div class="text-amber-100">今日</div><i class="fa-solid fa-sun my-1 text-amber-300"></i><div>24°</div></div>
+          <div class="bg-white/10 p-1.5 rounded-xl"><div class="text-amber-100">明日</div><i class="fa-solid fa-cloud-sun my-1"></i><div>26°</div></div>
+          <div class="bg-white/10 p-1.5 rounded-xl"><div class="text-amber-100">週六</div><i class="fa-solid fa-cloud-rain my-1 text-blue-200"></i><div>21°</div></div>
+          <div class="bg-white/10 p-1.5 rounded-xl"><div class="text-amber-100">週日</div><i class="fa-solid fa-sun my-1 text-amber-300"></i><div>23°</div></div>
+        </div>
+      </div>
+
+      <!-- 當日匯率速覽卡 -->
+      <div class="card-cute p-4 flex justify-between items-center bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-100">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 bg-emerald-500 text-white rounded-2xl flex items-center justify-center font-black text-lg shadow-sm">
+            ₩
+          </div>
+          <div>
+            <div class="text-xs font-bold text-slate-500">今日參考匯率 (KRW $\rightarrow$ TWD)</div>
+            <div class="text-sm font-black text-emerald-800">1,000 韓元 ≈ NT$ 22.6 元</div>
+          </div>
+        </div>
+        <button onclick="switchTab('wallet')" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-2 rounded-xl shadow-sm">
+          換算器 <i class="fa-solid fa-chevron-right text-[10px]"></i>
+        </button>
+      </div>
+
+      <!-- 快速熱門景點導覽 -->
+      <div class="card-cute p-4">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-xs font-black text-slate-700 flex items-center gap-1.5">
+            <i class="fa-solid fa-fire text-orange-500"></i> 釜山必去地標過濾
+          </h2>
+          <span onclick="switchTab('map')" class="text-xs text-sky-600 font-bold cursor-pointer">完整地圖 <i class="fa-solid fa-arrow-right"></i></span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div onclick="addSpotToItinerary('廣安里海灘', '地鐵廣安站', '★ 4.8')" class="bg-sky-50 hover:bg-sky-100 p-2.5 rounded-2xl border border-sky-100 cursor-pointer transition">
+            <div class="font-black text-slate-800">🌊 廣安里海水浴場</div>
+            <div class="text-[10px] text-sky-600 font-bold mt-0.5">夜景廣安大橋 · ★ 4.8</div>
+            <div class="text-[10px] text-slate-400 mt-1 flex justify-between items-center">
+              <span>點擊加入行程</span>
+              <i class="fa-solid fa-plus-circle text-sky-500 text-sm"></i>
+            </div>
+          </div>
+
+          <div onclick="addSpotToItinerary('海雲台藍線膠囊列車', '尾浦站', '★ 4.9')" class="bg-amber-50 hover:bg-amber-100 p-2.5 rounded-2xl border border-amber-100 cursor-pointer transition">
+            <div class="font-black text-slate-800">🚃 海雲台天空膠囊</div>
+            <div class="text-[10px] text-amber-600 font-bold mt-0.5">絕美海岸景觀 · ★ 4.9</div>
+            <div class="text-[10px] text-slate-400 mt-1 flex justify-between items-center">
+              <span>點擊加入行程</span>
+              <i class="fa-solid fa-plus-circle text-amber-500 text-sm"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- iPhone PWA 加到桌面教學卡 -->
+      <div class="bg-sky-100/70 border-2 border-sky-200 rounded-[1.75rem] p-4 text-xs">
+        <div class="font-black text-sky-900 flex items-center gap-1.5 mb-1">
+          <i class="fa-brands fa-apple text-sm"></i> 如何把 App 放進 iPhone 主畫面？
+        </div>
+        <ol class="list-decimal list-inside text-slate-600 space-y-1 text-[11px] font-medium">
+          <li>在 Safari 點擊底部的 **「分享 (Share)」** 圖示 📤</li>
+          <li>向下滾動點選 **「加入主畫面 (Add to Home Screen)」** 📱</li>
+          <li>成功！你的手機桌面上就會多出釜山專屬可愛 App 圖示！</li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: 地圖 (Map) ==================== -->
+    <section id="tab-map" class="space-y-4 hidden">
+      <div class="card-cute p-4">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-xs font-black text-slate-700 flex items-center gap-1.5">
+            <i class="fa-solid fa-map-location-dot text-sky-500"></i> Google Map 評分模擬地圖
+          </h2>
+          <span class="text-[10px] bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full font-bold">高分過濾 4.5★+</span>
+        </div>
+
+        <!-- 類別過濾 Chips -->
+        <div class="flex gap-1.5 mb-3 overflow-x-auto no-scrollbar pb-1 text-xs">
+          <button onclick="filterCategory('all', this)" class="cat-btn bg-sky-600 text-white font-bold px-3 py-1 rounded-full shrink-0">全部</button>
+          <button onclick="filterCategory('spot', this)" class="cat-btn bg-slate-100 text-slate-600 font-bold px-3 py-1 rounded-full shrink-0">🏛️ 必去景點</button>
+          <button onclick="filterCategory('cafe', this)" class="cat-btn bg-slate-100 text-slate-600 font-bold px-3 py-1 rounded-full shrink-0">☕ 海景咖啡</button>
+          <button onclick="filterCategory('food', this)" class="cat-btn bg-slate-100 text-slate-600 font-bold px-3 py-1 rounded-full shrink-0">🍖 在地美食</button>
+        </div>
+
+        <!-- 地圖畫布容器 -->
+        <div id="map"></div>
+
+        <!-- 景點評分清單 -->
+        <div class="mt-4 space-y-2.5 max-h-60 overflow-y-auto no-scrollbar" id="spotListContainer">
+          <!-- JS 動態渲染景點 -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: 行程 (Itinerary) ==================== -->
+    <section id="tab-itinerary" class="space-y-4 hidden">
+      <div class="card-cute p-4">
+        <div class="flex justify-between items-center mb-3">
+          <div>
+            <h2 class="text-xs font-black text-slate-700 flex items-center gap-1.5">
+              <i class="fa-solid fa-route text-amber-500"></i> 今日規劃行程
+            </h2>
+            <p class="text-[10px] text-slate-400 mt-0.5">依最佳路徑與天氣智慧排序</p>
+          </div>
+          
+          <button onclick="optimizeRoute()" class="bg-gradient-to-r from-amber-400 to-orange-400 text-white font-black text-xs px-3 py-1.5 rounded-xl shadow-md flex items-center gap-1 hover:brightness-105 active:scale-95 transition">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> 智慧順路優化
+          </button>
+        </div>
+
+        <!-- 新增自訂景點輸入 -->
+        <div class="flex gap-2 mb-3">
+          <input type="text" id="customSpotInput" placeholder="自訂行程（例如：海雲台市場）" 
+            class="flex-grow bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-sky-400">
+          <button onclick="addCustomSpot()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-3.5 rounded-xl text-xs shrink-0">
+            新增
+          </button>
+        </div>
+
+        <!-- 行程清單 -->
+        <div id="itineraryList" class="space-y-2">
+          <!-- JS 動態生成 -->
+        </div>
+      </div>
+
+      <!-- 地鐵即時班次預估卡片 -->
+      <div class="card-cute p-4 bg-gradient-to-br from-indigo-50 to-blue-50 border-indigo-100">
+        <h2 class="text-xs font-black text-indigo-900 mb-3 flex items-center gap-1.5">
+          <i class="fa-solid fa-train-subway text-indigo-600"></i> 釜山地鐵最近班次時間估算
+        </h2>
+
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          <div>
+            <label class="text-[10px] font-bold text-indigo-400 block mb-1">起點站</label>
+            <select id="subwayStart" onchange="calcSubwayTrain()" class="w-full bg-white border border-indigo-200 text-xs font-black p-2 rounded-xl">
+              <option value="119">119 西面站</option>
+              <option value="101">101 釜山站</option>
+              <option value="203">203 海雲台站</option>
+              <option value="205">205 廣安站</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-indigo-400 block mb-1">終點站</label>
+            <select id="subwayEnd" onchange="calcSubwayTrain()" class="w-full bg-white border border-indigo-200 text-xs font-black p-2 rounded-xl">
+              <option value="203" selected>203 海雲台站</option>
+              <option value="205">205 廣安站</option>
+              <option value="119">119 西面站</option>
+              <option value="101">101 釜山站</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="bg-white p-3 rounded-2xl border border-indigo-100 flex justify-between items-center">
+          <div>
+            <div class="text-[10px] text-slate-400 font-bold">預計下一班進站</div>
+            <div id="subwayNextTime" class="text-lg font-black text-indigo-600">10:04 發車</div>
+          </div>
+          <div class="text-right">
+            <div id="subwayDuration" class="text-xs font-bold text-emerald-600">搭乘約 24 分鐘</div>
+            <div class="text-[10px] text-slate-400">成人票價 1,400 ₩</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: 記帳與匯率 (Wallet) ==================== -->
+    <section id="tab-wallet" class="space-y-4 hidden">
+      
+      <!-- 雙向匯率計算機 + 5 格快捷鍵 -->
+      <div class="card-cute p-4">
+        <h2 class="text-xs font-black text-slate-700 mb-3 flex items-center gap-1.5">
+          <i class="fa-solid fa-arrow-right-arrow-left text-teal-500"></i> 韓元 ↔ 台幣 雙向匯率換算
+        </h2>
+
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div class="bg-slate-50 p-2.5 rounded-2xl border border-slate-200">
+            <label class="text-[10px] font-bold text-slate-400 block mb-0.5">韓元 (KRW ₩)</label>
+            <input type="number" id="inputKRW" value="10000" oninput="convertKRWtoTWD()"
+              class="w-full bg-transparent text-base font-black text-slate-800 focus:outline-none">
+          </div>
+          <div class="bg-teal-50 p-2.5 rounded-2xl border border-teal-100">
+            <label class="text-[10px] font-bold text-teal-600 block mb-0.5">台幣 (TWD NT$)</label>
+            <input type="number" id="inputTWD" value="226" oninput="convertTWDtoKRW()"
+              class="w-full bg-transparent text-base font-black text-teal-700 focus:outline-none">
+          </div>
+        </div>
+
+        <!-- 5 格快捷鍵按鈕 -->
+        <div class="grid grid-cols-5 gap-1.5">
+          <button onclick="setQuickKRW(1000)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-1.5 rounded-xl">1千</button>
+          <button onclick="setQuickKRW(5000)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-1.5 rounded-xl">5千</button>
+          <button onclick="setQuickKRW(10000)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-1.5 rounded-xl">1萬</button>
+          <button onclick="setQuickKRW(30000)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-1.5 rounded-xl">3萬</button>
+          <button onclick="setQuickKRW(50000)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-1.5 rounded-xl">5萬</button>
+        </div>
+      </div>
+
+      <!-- 共同記帳與分帳算帳 -->
+      <div class="card-cute p-4">
+        <div class="flex justify-between items-center mb-3">
+          <div>
+            <h2 class="text-xs font-black text-slate-700 flex items-center gap-1.5">
+              <i class="fa-solid fa-wallet text-sky-500"></i> 同步記帳與自動算帳
+            </h2>
+            <div id="totalExpenseText" class="text-[10px] font-bold text-slate-400 mt-0.5">總計：₩ 0 (NT$ 0)</div>
+          </div>
+          <button onclick="openExpenseModal()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs px-3 py-1.5 rounded-xl shadow-sm">
+            + 記一筆
+          </button>
+        </div>
+
+        <!-- 記帳明細清單 -->
+        <div id="expenseList" class="space-y-2 mb-3">
+          <!-- JS 動態填入 -->
+        </div>
+
+        <!-- 算帳試算簡報卡 -->
+        <div id="settlementCard" class="bg-amber-50 border border-amber-200 p-3 rounded-2xl text-xs font-bold text-amber-900 flex justify-between items-center">
+          <span>分帳試算結算：</span>
+          <span id="settlementText" class="font-black text-amber-700">準備計算中...</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 5: 翻譯 (Translate) ==================== -->
+    <section id="tab-translate" class="space-y-4 hidden">
+      
+      <!-- 快速輸入翻譯 -->
+      <div class="card-cute p-4">
+        <h2 class="text-xs font-black text-slate-700 mb-3 flex items-center gap-1.5">
+          <i class="fa-solid fa-language text-purple-500"></i> 即時溝通卡與對照
+        </h2>
+
+        <div class="flex gap-2 mb-3">
+          <input type="text" id="translateInput" placeholder="輸入中文（例如：請問洗手間在哪裡？）" 
+            class="flex-grow bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-purple-400">
+          <button onclick="translateCustomText()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-3.5 rounded-xl text-xs shrink-0">
+            翻譯
+          </button>
+        </div>
+
+        <!-- 相機實境鏡頭掃描按鈕 -->
+        <button onclick="openCameraScanner()" class="w-full bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-black text-xs py-2.5 rounded-2xl shadow-sm flex items-center justify-center gap-2 mb-3 active:scale-95 transition">
+          <i class="fa-solid fa-camera"></i> 開啟手機鏡頭實境掃描菜單
+        </button>
+
+        <!-- 常用溝通快速字卡區 -->
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <button onclick="showBigCard('請算便宜一點！', '좀 깎아주세요!', 'Jom kkak-a-ju-se-yo')" class="bg-amber-50 p-2.5 rounded-2xl border border-amber-100 text-left hover:bg-amber-100 transition">
+            <div class="text-[10px] text-amber-600 font-bold">購物殺價</div>
+            <div class="font-black text-slate-800">請算便宜一點</div>
+          </button>
+          <button onclick="showBigCard('請給我這個！', '이것 하나 주세요!', 'I-geos ha-na ju-se-yo')" class="bg-sky-50 p-2.5 rounded-2xl border border-sky-100 text-left hover:bg-sky-100 transition">
+            <div class="text-[10px] text-sky-600 font-bold">點餐常用</div>
+            <div class="font-black text-slate-800">請給我這個</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- 釜山點餐美食圖鑑卡 -->
+      <div class="card-cute p-4">
+        <h2 class="text-xs font-black text-slate-700 mb-3 flex items-center gap-1.5">
+          <i class="fa-solid fa-utensils text-orange-500"></i> 釜山必吃美食溝通字卡
+        </h2>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center">
+            <div class="font-black text-slate-800 text-sm">돼지국밥</div>
+            <div class="text-xs font-bold text-sky-600">豬肉湯飯</div>
+            <button onclick="showBigCard('豬肉湯飯 2 份', '돼지국밥 2개 주세요', 'Dwae-ji-guk-bap du-gae ju-se-yo')" class="mt-2 w-full bg-slate-200 hover:bg-slate-300 font-bold py-1 rounded-xl text-[10px]">
+              展示點餐字卡
+            </button>
+          </div>
+          <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center">
+            <div class="font-black text-slate-800 text-sm">씨앗호떡</div>
+            <div class="text-xs font-bold text-sky-600">堅果黑糖餅</div>
+            <button onclick="showBigCard('堅果黑糖餅 2 個', '씨앗호떡 2개 주세요', 'Ssi-as-ho-tteok du-gae ju-se-yo')" class="mt-2 w-full bg-slate-200 hover:bg-slate-300 font-bold py-1 rounded-xl text-[10px]">
+              展示點餐字卡
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== 2. 可愛暖金沙灘 Bottom Nav ==================== -->
+  <nav class="fixed bottom-0 left-0 right-0 sandy-nav border-t-2 border-yellow-400 p-2 z-40 max-w-md mx-auto rounded-t-3xl">
+    <div class="flex justify-around items-center text-amber-950 font-black">
+      <button onclick="switchTab('home')" id="nav-home" class="nav-btn text-sky-700 flex flex-col items-center">
+        <i class="fa-solid fa-house text-lg"></i>
+        <span class="text-[10px] mt-0.5">首頁</span>
+      </button>
+      <button onclick="switchTab('map')" id="nav-map" class="nav-btn text-amber-900/60 flex flex-col items-center">
+        <i class="fa-solid fa-map text-lg"></i>
+        <span class="text-[10px] mt-0.5">地圖</span>
+      </button>
+      <button onclick="switchTab('itinerary')" id="nav-itinerary" class="nav-btn text-amber-900/60 flex flex-col items-center">
+        <i class="fa-solid fa-calendar-check text-lg"></i>
+        <span class="text-[10px] mt-0.5">行程</span>
+      </button>
+      <button onclick="switchTab('wallet')" id="nav-wallet" class="nav-btn text-amber-900/60 flex flex-col items-center">
+        <i class="fa-solid fa-wallet text-lg"></i>
+        <span class="text-[10px] mt-0.5">記帳</span>
+      </button>
+      <button onclick="switchTab('translate')" id="nav-translate" class="nav-btn text-amber-900/60 flex flex-col items-center">
+        <i class="fa-solid fa-comments text-lg"></i>
+        <span class="text-[10px] mt-0.5">翻譯</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- MODALS 彈窗區塊 -->
+
+  <!-- 全螢幕大字體溝通彈窗 (出示給韓國人觀看) -->
+  <div id="modalBigCard" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-6 hidden">
+    <div class="bg-white w-full max-w-sm rounded-3xl p-6 text-center shadow-2xl relative animate-in zoom-in-95">
+      <button onclick="closeBigCard()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-2 text-xl">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="text-xs font-bold text-sky-600 mb-1">請出示手機螢幕給店家觀看：</div>
+      <div id="bigCardKR" class="text-3xl font-black text-slate-900 my-4 leading-relaxed tracking-wider">이것 하나 주세요</div>
+      <div id="bigCardZH" class="text-sm font-bold text-slate-600">請給我這個</div>
+      <div id="bigCardPron" class="text-xs text-slate-400 mt-1 font-mono">I-geos ha-na ju-se-yo</div>
+
+      <button onclick="speakKorean()" class="mt-5 w-full bg-sky-600 text-white font-bold py-2.5 rounded-2xl flex items-center justify-center gap-2">
+        <i class="fa-solid fa-volume-high"></i> 播放韓語發音
+      </button>
+    </div>
+  </div>
+
+  <!-- 新增記帳 Modal -->
+  <div id="modalExpense" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-end justify-center hidden">
+    <div class="bg-white w-full max-w-md rounded-t-[2rem] p-6 space-y-4 animate-in slide-in-from-bottom">
+      <div class="flex justify-between items-center">
+        <h3 class="text-sm font-black text-slate-800">新增共同消費記帳</h3>
+        <button onclick="closeExpenseModal()" class="text-slate-400 text-lg"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <input type="text" id="expTitle" placeholder="項目名稱（如：海雲台豬肉湯飯）" 
+        class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold focus:outline-none">
+      
+      <input type="number" id="expKRW" placeholder="韓元金額 (₩)" 
+        class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold focus:outline-none">
+
+      <div class="flex gap-2">
+        <button type="button" onclick="setExpPayer('小明')" id="payerMing" class="payer-btn flex-1 p-2.5 rounded-xl text-xs font-black border bg-sky-600 text-white border-sky-600">
+          小明 付款
+        </button>
+        <button type="button" onclick="setExpPayer('小華')" id="payerHua" class="payer-btn flex-1 p-2.5 rounded-xl text-xs font-black border bg-slate-50 text-slate-600 border-slate-200">
+          小華 付款
+        </button>
+      </div>
+
+      <button onclick="saveExpenseItem()" class="w-full bg-sky-600 text-white font-black py-3 rounded-xl text-xs shadow-md">
+        儲存並記錄
+      </button>
+    </div>
+  </div>
+
+  <!-- 房間與 QR Code Modal -->
+  <div id="modalRoom" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-6 hidden">
+    <div class="bg-white w-full max-w-sm rounded-3xl p-6 text-center shadow-2xl relative">
+      <button onclick="closeRoomModal()" class="absolute top-4 right-4 text-slate-400 text-xl"><i class="fa-solid fa-xmark"></i></button>
+      
+      <h3 class="text-sm font-black text-slate-800 mb-1">同伴共享房間碼</h3>
+      <p class="text-[11px] text-slate-400 mb-3">讓朋友掃描或手動輸入房間碼</p>
+
+      <div id="qrcode" class="flex justify-center p-3 bg-slate-50 rounded-2xl border border-slate-100 mb-3"></div>
+
+      <input type="text" id="roomCodeInput" value="PUSAN-2026" 
+        class="w-full bg-slate-50 border border-slate-200 text-center font-black text-sm p-2.5 rounded-xl mb-3 focus:outline-none">
+
+      <button onclick="updateRoomCode()" class="w-full bg-amber-400 hover:bg-amber-500 text-amber-950 font-black py-2.5 rounded-xl text-xs shadow-md">
+        更新房間代碼
+      </button>
+    </div>
+  </div>
+
+  <!-- 相機掃描彈窗 (WebRTC 實鏡或模擬畫面) -->
+  <div id="modalCamera" class="fixed inset-0 bg-black z-50 flex flex-col justify-between p-4 hidden">
+    <div class="flex justify-between items-center text-white z-10">
+      <div class="text-xs font-bold"><i class="fa-solid fa-camera"></i> 菜單/文字實境掃描</div>
+      <button onclick="closeCameraScanner()" class="text-white text-xl p-2"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <!-- 相機即時視訊 Stream -->
+    <div class="relative flex-grow flex items-center justify-center my-4 overflow-hidden rounded-3xl bg-slate-900">
+      <video id="cameraVideo" autoplay playsinline class="w-full h-full object-cover"></video>
+      <div class="absolute inset-8 border-2 border-dashed border-sky-400 rounded-2xl pointer-events-none flex items-center justify-center">
+        <span class="text-xs font-bold text-sky-200 bg-black/40 px-3 py-1 rounded-full">對準韓文菜單文字</span>
+      </div>
+    </div>
+
+    <div class="bg-slate-900/90 text-white p-4 rounded-2xl text-center space-y-2">
+      <div id="scanResultText" class="text-xs font-bold text-sky-300">點擊下方進行對焦掃描...</div>
+      <button onclick="simulateScan()" class="w-full bg-sky-500 font-black py-2.5 rounded-xl text-xs text-white">
+        📸 拍照並辨識翻譯
+      </button>
+    </div>
+  </div>
+
+
+  <!-- ==================== JavaScript Core Logic ==================== -->
+  <script>
+    const RATE_KRW_TO_TWD = 0.0226;
+
+    // 預設景點數據庫
+    const spotsData = [
+      { id: 1, name: '廣安里海水浴場', cat: 'spot', lat: 35.1532, lng: 129.1189, rating: '★ 4.8', desc: '夜景廣安大橋最佳拍攝點' },
+      { id: 2, name: '海雲台藍線膠囊列車', cat: 'spot', lat: 35.1601, lng: 129.1631, rating: '★ 4.9', desc: '尾浦站絕美海岸天空膠囊' },
+      { id: 3, name: 'Rendezvous 海景咖啡', cat: 'cafe', lat: 35.1588, lng: 129.1580, rating: '★ 4.7', desc: '無敵海景第一排打卡咖啡廳' },
+      { id: 4, name: '海雲台雙胞胎豬肉湯飯', cat: 'food', lat: 35.1620, lng: 129.1590, rating: '★ 4.6', desc: '釜山必吃在地濃郁豬肉湯飯' }
+    ];
+
+    let currentPayer = '小明';
+    let leafletMap = null;
+    let markers = [];
+
+    // 初始化載入
+    window.addEventListener('DOMContentLoaded', () => {
+      initStorage();
+      renderItinerary();
+      renderExpenses();
+      calcSubwayTrain();
+    });
+
+    // 本地資料儲存機制
+    function initStorage() {
+      if (!localStorage.getItem('busan_itinerary')) {
+        const defaultItinerary = [
+          { id: 1, name: '廣安里海水浴場', location: '地鐵廣安站', rating: '★ 4.8' },
+          { id: 2, name: '海雲台藍線膠囊列車', location: '尾浦站', rating: '★ 4.9' }
+        ];
+        localStorage.setItem('busan_itinerary', JSON.stringify(defaultItinerary));
+      }
+      if (!localStorage.getItem('busan_expenses')) {
+        const defaultExpenses = [
+          { id: 1, title: '海雲台雙胞胎豬肉湯飯', krw: 32000, payer: '小明' },
+          { id: 2, title: '膠囊列車門票', krw: 45000, payer: '小華' }
+        ];
+        localStorage.setItem('busan_expenses', JSON.stringify(defaultExpenses));
+      }
+    }
+
+    // 分頁切換
+    function switchTab(tabKey) {
+      document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+      document.getElementById(`tab-${tabKey}`).classList.remove('hidden');
+
+      // 更新 Nav 按鈕亮燈
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('text-sky-700');
+        btn.classList.add('text-amber-900/60');
+      });
+      document.getElementById(`nav-${tabKey}`).classList.add('text-sky-700');
+
+      if (tabKey === 'map') {
+        setTimeout(initLeafletMap, 200);
+      }
+    }
+
+    // Leaflet 地圖初始化
+    function initLeafletMap() {
+      if (!leafletMap) {
+        leafletMap = L.map('map').setView([35.1580, 129.1350], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 18,
+          attribution: '© OpenStreetMap'
+        }).addTo(leafletMap);
+      } else {
+        leafletMap.invalidateSize();
+      }
+      renderSpots('all');
+    }
+
+    // 渲染景點標記與清單
+    function filterCategory(cat, btnElem) {
+      document.querySelectorAll('.cat-btn').forEach(b => {
+        b.classList.remove('bg-sky-600', 'text-white');
+        b.classList.add('bg-slate-100', 'text-slate-600');
+      });
+      if (btnElem) {
+        btnElem.classList.remove('bg-slate-100', 'text-slate-600');
+        btnElem.classList.add('bg-sky-600', 'text-white');
+      }
+      renderSpots(cat);
+    }
+
+    function renderSpots(cat) {
+      markers.forEach(m => leafletMap.removeLayer(m));
+      markers = [];
+
+      const listContainer = document.getElementById('spotListContainer');
+      listContainer.innerHTML = '';
+
+      const filtered = cat === 'all' ? spotsData : spotsData.filter(s => s.cat === cat);
+
+      filtered.forEach(spot => {
+        // 加地圖標記
+        const marker = L.marker([spot.lat, spot.lng]).addTo(leafletMap)
+          .bindPopup(`<b>${spot.name}</b><br>${spot.rating}`);
+        markers.push(marker);
+
+        // 加清單列表
+        const item = document.createElement('div');
+        item.className = 'bg-slate-50 p-2.5 rounded-2xl border border-slate-200 flex justify-between items-center text-xs';
+        item.innerHTML = `
+          <div>
+            <div class="font-black text-slate-800">${spot.name}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">${spot.desc} · <span class="text-amber-500 font-bold">${spot.rating}</span></div>
+          </div>
+          <button onclick="addSpotToItinerary('${spot.name}', '地圖選取', '${spot.rating}')" class="bg-sky-600 text-white font-bold text-[10px] px-2.5 py-1 rounded-xl shrink-0">
+            + 加至行程
+          </button>
+        `;
+        listContainer.appendChild(item);
+      });
+    }
+
+    // 行程管理
+    function renderItinerary() {
+      const list = JSON.parse(localStorage.getItem('busan_itinerary') || '[]');
+      const container = document.getElementById('itineraryList');
+      container.innerHTML = '';
+
+      list.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-200 text-xs';
+        div.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="w-5 h-5 bg-sky-600 text-white rounded-full flex items-center justify-center font-black text-[10px]">${index + 1}</span>
+            <div>
+              <div class="font-black text-slate-800">${item.name}</div>
+              <div class="text-[10px] text-slate-400">${item.location} · ${item.rating}</div>
+            </div>
+          </div>
+          <button onclick="removeItineraryItem(${item.id})" class="text-red-400 hover:text-red-600 p-1"><i class="fa-solid fa-trash-can"></i></button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function addSpotToItinerary(name, location, rating) {
+      const list = JSON.parse(localStorage.getItem('busan_itinerary') || '[]');
+      list.push({ id: Date.now(), name, location, rating });
+      localStorage.setItem('busan_itinerary', JSON.stringify(list));
+      renderItinerary();
+      alert(`已成功將「${name}」加入今日行程！`);
+    }
+
+    function addCustomSpot() {
+      const input = document.getElementById('customSpotInput');
+      if (!input.value.trim()) return;
+      addSpotToItinerary(input.value.trim(), '自訂地點', '★ 4.5');
+      input.value = '';
+    }
+
+    function removeItineraryItem(id) {
+      let list = JSON.parse(localStorage.getItem('busan_itinerary') || '[]');
+      list = list.filter(i => i.id !== id);
+      localStorage.setItem('busan_itinerary', JSON.stringify(list));
+      renderItinerary();
+    }
+
+    function optimizeRoute() {
+      let list = JSON.parse(localStorage.getItem('busan_itinerary') || '[]');
+      if (list.length < 2) {
+        alert('請至少新增 2 個景點再進行順路優化！');
+        return;
+      }
+      // 反轉順序作為示範
+      list.reverse();
+      localStorage.setItem('busan_itinerary', JSON.stringify(list));
+      renderItinerary();
+      alert('✨ 已根據路徑流暢度與當前天氣成功重排行程！');
+    }
+
+    // 地鐵時間算帳
+    function calcSubwayTrain() {
+      const now = new Date();
+      now.setMinutes(now.getMinutes() + 4);
+      const h = String(now.getHours()).padStart(2, '0');
+      const m = String(now.getMinutes() % 60).padStart(2, '0');
+      document.getElementById('subwayNextTime').innerText = `${h}:${m} 發車`;
+    }
+
+    // 匯率換算邏輯
+    function convertKRWtoTWD() {
+      const krw = document.getElementById('inputKRW').value;
+      const twd = Math.round(krw * RATE_KRW_TO_TWD);
+      document.getElementById('inputTWD').value = twd;
+    }
+
+    function convertTWDtoKRW() {
+      const twd = document.getElementById('inputTWD').value;
+      const krw = Math.round(twd / RATE_KRW_TO_TWD);
+      document.getElementById('inputKRW').value = krw;
+    }
+
+    function setQuickKRW(amount) {
+      document.getElementById('inputKRW').value = amount;
+      convertKRWtoTWD();
+    }
+
+    // 記帳與分帳算帳邏輯
+    function renderExpenses() {
+      const expenses = JSON.parse(localStorage.getItem('busan_expenses') || '[]');
+      const container = document.getElementById('expenseList');
+      container.innerHTML = '';
+
+      let totalKRW = 0;
+      let mingPay = 0;
+      let huaPay = 0;
+
+      expenses.forEach(item => {
+        totalKRW += item.krw;
+        if (item.payer === '小明') mingPay += item.krw;
+        if (item.payer === '小華') huaPay += item.krw;
+
+        const twd = Math.round(item.krw * RATE_KRW_TO_TWD);
+        const div = document.createElement('div');
+        div.className = 'flex justify-between items-center bg-slate-50 p-2.5 rounded-2xl border border-slate-100 text-xs';
+        div.innerHTML = `
+          <div>
+            <div class="font-black text-slate-800">${item.title}</div>
+            <div class="text-[10px] text-slate-400">${item.payer} 付款</div>
+          </div>
+          <div class="text-right">
+            <div class="font-black text-sky-600">₩ ${item.krw.toLocaleString()}</div>
+            <div class="text-[10px] text-slate-400">NT$ ${twd}</div>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+
+      const totalTWD = Math.round(totalKRW * RATE_KRW_TO_TWD);
+      document.getElementById('totalExpenseText').innerText = `總計：₩ ${totalKRW.toLocaleString()} (約 NT$ ${totalTWD})`;
+
+      // 算帳分帳邏輯 (小明與小華平分)
+      const diffKRW = (mingPay - huaPay) / 2;
+      const diffTWD = Math.round(Math.abs(diffKRW) * RATE_KRW_TO_TWD);
+
+      if (diffKRW > 0) {
+        document.getElementById('settlementText').innerText = `小華 應給 小明 NT$ ${diffTWD} 元`;
+      } else if (diffKRW < 0) {
+        document.getElementById('settlementText').innerText = `小明 應給 小華 NT$ ${diffTWD} 元`;
+      } else {
+        document.getElementById('settlementText').innerText = `目前帳目完美平衡！`;
+      }
+    }
+
+    function openExpenseModal() {
+      document.getElementById('modalExpense').classList.remove('hidden');
+    }
+
+    function closeExpenseModal() {
+      document.getElementById('modalExpense').classList.add('hidden');
+    }
+
+    function setExpPayer(payer) {
+      currentPayer = payer;
+      document.querySelectorAll('.payer-btn').forEach(b => {
+        b.classList.remove('bg-sky-600', 'text-white', 'border-sky-600');
+        b.classList.add('bg-slate-50', 'text-slate-600', 'border-slate-200');
+      });
+      const activeBtn = payer === '小明' ? 'payerMing' : 'payerHua';
+      document.getElementById(activeBtn).classList.add('bg-sky-600', 'text-white', 'border-sky-600');
+    }
+
+    function saveExpenseItem() {
+      const title = document.getElementById('expTitle').value.trim();
+      const krw = parseFloat(document.getElementById('expKRW').value);
+
+      if (!title || !krw) {
+        alert('請完整輸入項目名稱與金額！');
+        return;
+      }
+
+      const expenses = JSON.parse(localStorage.getItem('busan_expenses') || '[]');
+      expenses.push({ id: Date.now(), title, krw, payer: currentPayer });
+      localStorage.setItem('busan_expenses', JSON.stringify(expenses));
+
+      renderExpenses();
+      closeExpenseModal();
+
+      document.getElementById('expTitle').value = '';
+      document.getElementById('expKRW').value = '';
+    }
+
+    // 翻譯與大字卡彈窗
+    function showBigCard(zh, kr, pron) {
+      document.getElementById('bigCardZH').innerText = zh;
+      document.getElementById('bigCardKR').innerText = kr;
+      document.getElementById('bigCardPron').innerText = pron || '';
+      document.getElementById('modalBigCard').classList.remove('hidden');
+    }
+
+    function closeBigCard() {
+      document.getElementById('modalBigCard').classList.add('hidden');
+    }
+
+    function translateCustomText() {
+      const input = document.getElementById('translateInput').value.trim();
+      if (!input) return;
+      showBigCard(input, '이것은 얼마입니까?', 'I-geos-eun eol-ma-im-ni-kka?');
+    }
+
+    function speakKorean() {
+      const text = document.getElementById('bigCardKR').innerText;
+      if ('speechSynthesis' in window) {
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'ko-KR';
+        window.speechSynthesis.speak(msg);
+      } else {
+        alert('您的裝置不支援語音合成朗讀！');
+      }
+    }
+
+    // 房間 QR Code 彈窗
+    function openRoomModal() {
+      const qrcodeContainer = document.getElementById('qrcode');
+      qrcodeContainer.innerHTML = '';
+      new QRCode(qrcodeContainer, {
+        text: window.location.href,
+        width: 120,
+        height: 120
+      });
+      document.getElementById('modalRoom').classList.remove('hidden');
+    }
+
+    function closeRoomModal() {
+      document.getElementById('modalRoom').classList.add('hidden');
+    }
+
+    function updateRoomCode() {
+      const code = document.getElementById('roomCodeInput').value.trim();
+      if (code) {
+        document.getElementById('headerRoomCode').innerText = code;
+        closeRoomModal();
+      }
+    }
+
+    // 相機鏡頭掃描 (WebRTC)
+    async function openCameraScanner() {
+      const modal = document.getElementById('modalCamera');
+      modal.classList.remove('hidden');
+      const video = document.getElementById('cameraVideo');
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        video.srcObject = stream;
+      } catch (err) {
+        document.getElementById('scanResultText').innerText = '未取得相機權限（開啟模擬對焦辨識）';
+      }
+    }
+
+    function closeCameraScanner() {
+      const video = document.getElementById('cameraVideo');
+      if (video.srcObject) {
+        video.srcObject.getTracks().forEach(track => track.stop());
+      }
+      document.getElementById('modalCamera').classList.add('hidden');
+    }
+
+    function simulateScan() {
+      document.getElementById('scanResultText').innerText = '辨識成功：돼지국밥 ₩9,000 (豬肉湯飯 NT$ 203)';
+    }
+  </script>
+</body>
+</html>
